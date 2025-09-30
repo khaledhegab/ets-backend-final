@@ -1,188 +1,240 @@
-# ETS Backend Final
+# ETS Backend - Electronic Transit System
 
-A robust Node.js backend server with Supabase integration for authentication and database operations.
+A robust Node.js/Express backend API for managing an Electronic Transit System (ETS) with real-time trip management, payment processing, and station gate operations.
 
-## Features
+## 🚀 Features
 
-- **Authentication**: Complete auth system using Supabase Auth
-- **Security**: Helmet, CORS, rate limiting, and input validation
-- **Database**: Supabase PostgreSQL integration
-- **API Documentation**: RESTful API endpoints
-- **Testing**: Jest test suite with mocking
-- **Code Quality**: ESLint configuration
-- **Error Handling**: Centralized error handling middleware
-- **Logging**: Morgan HTTP request logger
+- **User Authentication**: Supabase-powered authentication with JWT tokens
+- **Trip Management**: Start, track, and end transit trips with automatic fare calculation
+- **Station Gate Integration**: Secure gate authentication for entry/exit operations
+- **Balance Management**: Wallet system with available and holding balance separation
+- **Route Finding**: Calculate optimal metro routes between stations
+- **Payment Processing**: Transaction management with hold/release mechanism
+- **Dynamic Pricing**: Distance-based fare calculation (Short/Medium/Long/Extended)
 
-## Prerequisites
+## 📋 Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn
-- Supabase account and project
+- Node.js >= 16.0.0
+- PostgreSQL database (via Supabase)
+- Supabase account with project setup
 
-## Installation
+## 🛠️ Installation
 
-1. Clone the repository:
-
+1. **Clone the repository**
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
 cd ets-backend-final
 ```
 
-2. Install dependencies:
-
+2. **Install dependencies**
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+3. **Environment Configuration**
 
-```bash
-cp .env.example .env
-```
-
-4. Configure your `.env` file with your Supabase credentials:
+Create a `.env` file in the root directory:
 
 ```env
-NODE_ENV=development
+# Server Configuration
 PORT=3000
+NODE_ENV=development
 
+# Supabase Configuration
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRES_IN=7d
+# Station Authentication
+STATION_AUTH_TOKEN=your_secure_station_token
 
+# CORS
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
 ```
 
-## Supabase Setup
+4. **Database Setup**
 
-1. Create a new Supabase project
-2. Set up the following table in your Supabase database:
+Apply the database schema from `schema.sql` to your Supabase project. The schema includes:
+- Users table with balance management
+- Stations and gates
+- Trips tracking
+- Transactions ledger
+- Ticket types with pricing tiers
 
-```sql
--- Create profiles table
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  full_name TEXT,
-  username TEXT UNIQUE,
-  avatar_url TEXT,
-  bio TEXT,
-  role TEXT DEFAULT 'user',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+## 🏃 Running the Application
 
--- Set up Row Level Security (RLS)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-
--- Policy for users to see their own profile
-CREATE POLICY "Users can view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id);
-
--- Policy for users to update their own profile
-CREATE POLICY "Users can update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
-
--- Policy for users to insert their own profile
-CREATE POLICY "Users can insert own profile" ON profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
+**Development mode** (with auto-reload):
+```bash
+npm run dev
 ```
 
-## Available Scripts
+**Production mode**:
+```bash
+npm start
+```
 
-- `npm start` - Start the production server
-- `npm run dev` - Start the development server with nodemon
-- `npm test` - Run the test suite
-- `npm run test:watch` - Run tests in watch mode
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint errors
+**Testing**:
+```bash
+npm test
+npm run test:watch
+```
 
-## API Endpoints
+**Linting**:
+```bash
+npm run lint
+npm run lint:fix
+```
 
-### Authentication
+## 📡 API Endpoints
 
-- `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `POST /api/auth/reset-password` - Reset password
-- `PUT /api/auth/update-password` - Update password
+### Authentication (`/api/auth`)
 
-### Users
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/signup` | Register new user | No |
+| POST | `/login` | User login | No |
 
-- `GET /api/users/profile` - Get current user profile
-- `PUT /api/users/profile` - Update user profile
-- `GET /api/users` - Get all users (admin only)
-- `GET /api/users/:id` - Get user by ID
-- `DELETE /api/users/account` - Delete user account
+### Users (`/api/users`)
 
-### Protected Routes
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/start-trip` | Initiate a new trip | Yes |
+| POST | `/recharge-balance` | Add funds to wallet (webhook) | No |
+| POST | `/find-route` | Calculate route between stations | Yes |
 
-- `GET /api/protected` - Example protected route
-- `GET /api/example-data` - Example database query
+### Gates (`/api/gates`)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/start-trip` | Start trip at entry gate | Station Token |
+| POST | `/end-trip` | End trip at exit gate | Station Token |
 
 ### Health Check
 
-- `GET /health` - Server health check
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Service health status |
 
-## Project Structure
+## 🔐 Authentication
 
+### User Authentication
+Include JWT token in request headers:
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+### Station Authentication
+For gate operations, include:
+```
+x-station-token: <station_auth_token>
+x-gate-id: <gate_id>
+```
+
+## 🏗️ Architecture
+
+### Project Structure
 ```
 src/
+├── app.js                 # Express app configuration
+├── server.js              # Server entry point
 ├── config/
-│   └── supabase.js         # Supabase client configuration
-├── middleware/
-│   ├── auth.js             # Authentication middleware
-│   ├── errorHandler.js     # Error handling middleware
-│   └── notFound.js         # 404 handler
-├── routes/
-│   ├── auth.js             # Authentication routes
-│   ├── users.js            # User management routes
-│   └── protected.js        # Protected routes
-├── services/
-│   ├── authService.js      # Authentication service
-│   └── userService.js      # User service
-├── app.js                  # Express app configuration
-└── server.js               # Server entry point
-
-tests/
-├── app.test.js             # Application tests
-└── setup.js                # Test setup and mocks
+│   └── supabase.js        # Supabase client setup
+├── controllers/           # Request handlers
+│   ├── auth.controller.js
+│   ├── gates.controller.js
+│   └── users.controller.js
+├── services/              # Business logic layer
+│   ├── auth.service.js
+│   ├── gates.service.js
+│   └── users.service.js
+├── routes/                # API route definitions
+│   ├── auth.route.js
+│   ├── gates.route.js
+│   └── users.route.js
+├── middleware/            # Custom middleware
+│   ├── auth.js            # User JWT authentication
+│   ├── stationAuth.js     # Station gate authentication
+│   ├── errorHandler.js    # Global error handler
+│   └── notFound.js        # 404 handler
+└── utils/                 # Utility functions
+    ├── catchAsync.js      # Async error wrapper
+    ├── errorHandler.js    # Custom error class
+    └── metroRoutes.js     # Route calculation logic
 ```
 
-## Security Features
+### Design Patterns
 
-- **Helmet**: Sets various HTTP headers to secure the app
-- **CORS**: Configured for specific origins
-- **Rate Limiting**: Prevents abuse of API endpoints
-- **Input Validation**: Using express-validator
-- **JWT Authentication**: Secure token-based authentication via Supabase
-- **Environment Variables**: Sensitive data protection
+- **Service-Controller Pattern**: Separation of business logic from HTTP handling
+- **Dual Client Pattern**: Standard Supabase client for users, admin client for system operations
+- **Centralized Error Handling**: Custom ErrorHandler class with async wrapper
+- **Middleware Chain**: Validation → Authentication → Controller → Service
 
-## Testing
+## 💾 Database Schema
 
-The project includes a comprehensive test suite using Jest. Tests include:
+### Key Tables
 
-- Health check endpoint
-- 404 error handling
-- Mocked Supabase integration
+- **users**: User profiles with balance tracking (linked to Supabase Auth)
+- **stations**: Metro stations with coordinates and line information
+- **gates**: Entry/exit gates at each station
+- **trips**: Trip records from start to end station
+- **transactions**: Financial transaction ledger
+- **ticket_type**: Fare pricing based on distance tiers
 
-Run tests with:
+### Pricing Tiers
 
+| Type | Stations | Price (EGP) |
+|------|----------|-------------|
+| Short Distance | 1-9 | 8.00 |
+| Medium Distance | 10-16 | 10.00 |
+| Long Distance | 17-23 | 15.00 |
+| Extended Distance | 24+ | 20.00 |
+
+## 🔒 Security Features
+
+- **Row Level Security (RLS)**: Database-level access control
+- **JWT Token Validation**: Supabase Auth integration
+- **Request Validation**: express-validator for input sanitization
+- **CORS Protection**: Configurable allowed origins
+- **Rate Limiting**: Protection against abuse (100 req/15min)
+- **Helmet.js**: Security headers (if configured)
+
+## 🚦 Trip Lifecycle
+
+1. **User starts trip** → System holds estimated fare from balance
+2. **User travels** → Trip remains active
+3. **User exits at gate** → System calculates actual fare
+4. **Payment finalized** → Excess amount released back to balance
+
+## 🧪 Testing
+
+The project uses Jest for testing with Supabase mocking:
+- Unit tests for services
+- Integration tests for controllers
+- Mock setup in `tests/setup.js`
+
+## 📦 Docker Support
+
+Build and run with Docker:
 ```bash
-npm test
+docker build -t ets-backend .
+docker run -p 3000:3000 --env-file .env ets-backend
 ```
 
-## Contributing
+## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+1. Follow ESLint configuration (Airbnb base style)
+2. Write tests for new features
+3. Update documentation as needed
+4. Use conventional commits
 
-## License
+## 📝 License
 
-This project is licensed under the ISC License.
+ISC
+
+## 👥 Authors
+
+ETS Development Team
+
+---
+
+**Note**: This system manages real financial transactions. Ensure proper security audits before production deployment.
